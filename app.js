@@ -1,5 +1,5 @@
 /* MVNES · Sala de Espera — dados do instrumento e cálculos compartilhados (participante e painel) */
-var VERSAO = "3.2";
+var VERSAO = "3.3";
 var V = {
   VTCI: { nome: "Técnico-científico-intelectual", cor: "var(--v1)", txt: "Entender, interpretar, buscar a explicação do que está acontecendo." },
   VSC:  { nome: "Social-comunicacional", cor: "var(--v2)", txt: "Conversar, pedir apoio, negociar, ler as pessoas e as próprias reações." },
@@ -125,6 +125,16 @@ var ESCALA = [
  ["Depois de um imprevisto, retomo o que estava fazendo sem demora","VRES"]
 ];
 
+/* Comportamento real nos últimos 12 meses: critério externo para validade preditiva (um item por vetor) */
+var COMPORT = [
+ ["VTCI","Pesquisou sobre um diagnóstico, exame ou remédio antes de decidir o que fazer?"],
+ ["VSC","Pediu a alguém de fora da sua casa que ajudasse a resolver um problema de saúde (marcar, acompanhar, indicar alguém)?"],
+ ["VFE","Comparou preços ou negociou o valor de um tratamento, exame ou remédio?"],
+ ["VEXO","Fez uma reclamação formal (ouvidoria, ANS, Procon, Defensoria) ou pediu por escrito um direito na área da saúde?"],
+ ["VRES","Manteve um tratamento ou cuidado de saúde mesmo depois de um imprevisto que atrapalhou seus planos?"]
+];
+var COMPORT_OPC = [["Sim", 1], ["Não", 0], ["Não precisei", null]];
+
 var SOCIO = [
  ["idade","Idade",["18 a 29","30 a 44","45 a 59","60 ou mais"]],
  ["escolaridade","Escolaridade",["Fundamental","Médio","Superior","Pós-graduação"]],
@@ -187,4 +197,35 @@ function alpha(items) {
   var vt = vari(tot); if (!vt) return null;
   return k / (k - 1) * (1 - items.reduce(function (s, c) { return s + vari(c); }, 0) / vt);
 }
+/* Recalcula a magnitude por vetor com outra regra para as ações conjuntas (análise de sensibilidade)
+   modo "meio": peso dividido (padrão) · "inteiro": cada vetor da ação recebe o nível inteiro · "simples": ignora ações conjuntas */
+function magEsquema(s, modo) {
+  var tot = {}; K.forEach(function (v) { tot[v] = 0; });
+  s.cenas.forEach(function (c) {
+    var def = CENAS.filter(function (x) { return x.id === c.id; })[0]; if (!def) return;
+    def.o.forEach(function (op, k) {
+      var ks = Object.keys(op[1]); if (modo === "simples" && ks.length > 1) return;
+      ks.forEach(function (v) { tot[v] += (c.aloc[k] || 0) * (modo === "inteiro" ? 1 : op[1][v]); });
+    });
+  });
+  var m = {}; K.forEach(function (v) { m[v] = tot[v] / (v === "VRES" ? (N_RUPT || 1) : s.cenas.length); });
+  return m;
+}
+/* Correlação parcial de x e y controlando as colunas de Z (resíduos de MQO) */
+function residuos(y, Z) {
+  var n = y.length, p = Z[0].length + 1, X = Z.map(function (z) { return [1].concat(z); });
+  var XtX = range(p).map(function (i) { return range(p).map(function (j) { return X.reduce(function (s, r) { return s + r[i] * r[j]; }, 0); }); });
+  var Xty = range(p).map(function (i) { return X.reduce(function (s, r, t) { return s + r[i] * y[t]; }, 0); });
+  var M = XtX.map(function (r, i) { return r.concat([Xty[i]]); });
+  for (var c = 0; c < p; c++) {
+    var piv = c; for (var r = c + 1; r < p; r++) if (Math.abs(M[r][c]) > Math.abs(M[piv][c])) piv = r;
+    var t = M[c]; M[c] = M[piv]; M[piv] = t; if (Math.abs(M[c][c]) < 1e-12) return null;
+    for (r = 0; r < p; r++) if (r !== c) { var f = M[r][c] / M[c][c]; for (var j = c; j <= p; j++) M[r][j] -= f * M[c][j]; }
+  }
+  var b = range(p).map(function (i) { return M[i][p] / M[i][i]; });
+  return y.map(function (yy, t) { return yy - X[t].reduce(function (s, x, i) { return s + x * b[i]; }, 0); });
+}
+function parcial(x, y, Z) { if (x.length < Z[0].length + 4) return null; var rx = residuos(x, Z), ry = residuos(y, Z); return rx && ry ? pearson(rx, ry) : null; }
+function codOrd(val, lista) { var i = lista.indexOf(val); return i < 0 || /não dizer/.test(val) ? null : i; }
+
 function f2(x) { return x == null || isNaN(x) ? "–" : x.toFixed(2); }

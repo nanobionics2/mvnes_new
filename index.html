@@ -21,7 +21,7 @@
 <script src="app.js"></script>
 <script>
 var S;
-var TOTAL = CENAS.length + 2;
+var TOTAL = CENAS.length + 3;
 function pid() {
   var id = null;
   try { id = localStorage.getItem("mvnes_pid"); } catch (e) {}
@@ -35,7 +35,7 @@ function now() { return (window.performance && performance.now) ? performance.no
 function intro() {
   reset(); $("#senha").textContent = "Senha 001";
   $("#app").innerHTML = '<section class="card">' +
-    '<span class="eyebrow">Doze situações · uns 12 minutos</span>' +
+    '<span class="eyebrow">Doze situações · uns 13 minutos</span>' +
     '<h1>Cada pessoa resolve a vida do seu jeito.</h1>' +
     '<p class="lede">Você vai passar por doze situações de saúde. Em cada uma, você começa com a bateria cheia da sua energia e atenção daquela semana. Não é dinheiro, é quanto de você vai para cada coisa. Para cada ação, toque em Nada, Pouco, Bastante ou Prioridade. A bateria vai esvaziando conforme você escolhe, e o que sobrar fica para o resto da semana.</p>' +
     '<p class="lede">Não existe jeito certo de gastar a bateria. No fim, você vê o desenho do seu modo de decidir.</p>' +
@@ -112,11 +112,31 @@ function escala() {
       $("#nx").disabled = f > 0;
     };
   });
+  $("#nx").onclick = comport; toTop();
+}
+
+function comport() {
+  S.comport = {};
+  $("#app").innerHTML = '<section class="card">' + prog(CENAS.length + 1) +
+    '<span class="eyebrow">Na vida real</span><h2>Nos últimos 12 meses, você…</h2><p class="hint">Pense no que de fato aconteceu, com você ou cuidando de alguém da família.</p>' +
+    '<div class="likert">' + COMPORT.map(function (c, k) {
+      return '<div class="item"><span>' + c[1] + '</span><div class="scale three" role="group">' + COMPORT_OPC.map(function (o, n) { return '<button data-k="' + k + '" data-n="' + n + '" aria-pressed="false">' + o[0] + '</button>'; }).join("") + '</div></div>';
+    }).join("") + '</div>' +
+    '<div class="row"><span class="note" id="faltam">' + COMPORT.length + ' perguntas sem resposta</span><button class="btn" id="nx" disabled>Continuar</button></div></section>';
+  Array.prototype.forEach.call(document.querySelectorAll(".scale button"), function (b) {
+    b.onclick = function () {
+      var k = +b.dataset.k; S.comport[COMPORT[k][0]] = COMPORT_OPC[+b.dataset.n][1];
+      Array.prototype.forEach.call(b.parentNode.querySelectorAll("button"), function (x) { x.setAttribute("aria-pressed", x === b); });
+      var f = COMPORT.length - Object.keys(S.comport).length;
+      $("#faltam").textContent = f ? f + (f > 1 ? " perguntas sem resposta" : " pergunta sem resposta") : "Tudo respondido";
+      $("#nx").disabled = f > 0;
+    };
+  });
   $("#nx").onclick = socio; toTop();
 }
 
 function socio() {
-  $("#app").innerHTML = '<section class="card">' + prog(CENAS.length + 1) +
+  $("#app").innerHTML = '<section class="card">' + prog(CENAS.length + 2) +
     '<span class="eyebrow">Para a análise</span><h2>Só mais um pouco sobre você</h2><p class="hint">Serve para comparar pessoas em condições parecidas.</p>' +
     SOCIO.map(function (s) { return '<div class="field"><label for="s_' + s[0] + '">' + s[1] + '</label><select id="s_' + s[0] + '"><option value="">Escolha</option>' + s[2].map(function (o) { return '<option>' + o + '</option>'; }).join("") + '</select></div>'; }).join("") +
     '<div class="row"><span class="note">Onde faz sentido, há a opção de não dizer.</span><button class="btn" id="nx" disabled>Ver meu desenho</button></div></section>';
@@ -140,7 +160,7 @@ function enviar(reg) {
 function resultado() {
   $("#senha").textContent = "Alta";
   var P = perfil(S.cenas), E = escalaMedia(S.escala);
-  var REG = { versao: VERSAO, pid: pid(), nome: S.nome, inicio: S.inicio, data: new Date().toISOString(), socio: S.socio, escala: S.escala, escala_media: E,
+  var REG = { versao: VERSAO, pid: pid(), nome: S.nome, inicio: S.inicio, data: new Date().toISOString(), socio: S.socio, comportamento: S.comport, escala: S.escala, escala_media: E,
     perfil: { prop: P.prop, mag: P.mag, aplicadas_media: P.aplic, correspondencia: P.corr }, cenas: S.cenas };
   var ord = K.slice().sort(function (a, b) { return P.prop[b] - P.prop[a]; });
   var lead = ord.filter(function (v) { return P.prop[v] > 0; }).slice(0, 2);

@@ -66,21 +66,45 @@ function render(all) {
   var corrM = {}, corrPos = {};
   K4.forEach(function (v) { corrM[v] = mean(A.map(function (s) { return s.perfil.correspondencia[v]; })); corrPos[v] = A.filter(function (s) { return s.perfil.correspondencia[v] > 0; }).length; });
 
+  /* distribuição da energia usada por cena */
+  var hist = range(ORCAMENTO + 1).map(function () { return 0; }), nc = 0;
+  A.forEach(function (s) { s.cenas.forEach(function (c) { hist[Math.min(ORCAMENTO, c.aplicadas)]++; nc++; }); });
+  var pctCheia = nc ? hist[ORCAMENTO] / nc : 0, hmax = Math.max.apply(null, hist.concat([1]));
+  /* sensibilidade da regra das ações conjuntas */
+  var ESQ = [["meio", "Peso dividido (padrão)"], ["inteiro", "Peso inteiro para cada vetor"], ["simples", "Só ações simples"]];
+  var sens = ESQ.map(function (e) {
+    var M = A.map(function (s) { return magEsquema(s, e[0]); });
+    var vv = function (v) { return M.map(function (m) { return m[v]; }); };
+    var d = [], o = []; K.forEach(function (a, i) { K.forEach(function (b, j) { var x = pearson(vv(a), sc(b)); if (x != null) (i === j ? d : o).push(x); }); });
+    var rr = []; K.forEach(function (a, i) { K.forEach(function (b, j) { if (j > i) { var x = pearson(vv(a), vv(b)); if (x != null) rr.push(x); } }); });
+    return [e[1], mean(d), mean(o), mean(rr)];
+  });
+  /* validade de critério: vetor na vinheta x comportamento real, bruto e controlando escolaridade e renda */
+  var ESC_L = SOCIO.filter(function (x) { return x[0] === "escolaridade"; })[0][2], REN_L = SOCIO.filter(function (x) { return x[0] === "renda"; })[0][2];
+  var crit = K.map(function (v) {
+    var B = A.filter(function (s) { return s.comportamento && s.comportamento[v] != null; });
+    var x = B.map(function (s) { return s.perfil.mag[v]; }), y = B.map(function (s) { return s.comportamento[v]; });
+    var sim = B.filter(function (s) { return s.comportamento[v] === 1; }), nao = B.filter(function (s) { return s.comportamento[v] === 0; });
+    var C = B.filter(function (s) { return codOrd(s.socio.escolaridade, ESC_L) != null && codOrd(s.socio.renda, REN_L) != null; });
+    var pc = C.length ? parcial(C.map(function (s) { return s.perfil.mag[v]; }), C.map(function (s) { return s.comportamento[v]; }), C.map(function (s) { return [codOrd(s.socio.escolaridade, ESC_L), codOrd(s.socio.renda, REN_L)]; })) : null;
+    return { v: v, n: B.length, sim: sim.length, mSim: mean(sim.map(function (s) { return s.perfil.mag[v]; })), mNao: mean(nao.map(function (s) { return s.perfil.mag[v]; })), r: pearson(x, y), rp: pc, nc: C.length };
+  });
+
   var hdr = ["sessao", "pid", "nome", "data"].concat(SOCIO.map(function (s) { return s[0]; }), K.map(function (v) { return "prop_" + v; }), K.map(function (v) { return "mag_" + v; }), ["aplicadas_media"],
-    K4.map(function (v) { return "corresp_" + v; }), K.map(function (v) { return "esc_" + v; }), ESCALA.map(function (_, k) { return "item" + (k + 1); }));
+    K4.map(function (v) { return "corresp_" + v; }), K.map(function (v) { return "esc_" + v; }), ESCALA.map(function (_, k) { return "item" + (k + 1); }), K.map(function (v) { return "comp_" + v; }));
   CENAS.forEach(function (c) { hdr = hdr.concat(K.map(function (v) { return c.id + "_" + v; }), [c.id + "_aplic", c.id + "_pos", c.id + "_ms"], c.o.map(function (_, k) { return c.id + "_op" + (k + 1); })); });
   var rows = sess.map(function (s, i) {
     var r = [i + 1, s.pid, s.nome, s.data].concat(SOCIO.map(function (x) { return (s.socio || {})[x[0]] || ""; }), K.map(function (v) { return s.perfil.prop[v].toFixed(4); }), K.map(function (v) { return s.perfil.mag[v].toFixed(3); }),
-      [s.perfil.aplicadas_media.toFixed(2)], K4.map(function (v) { return s.perfil.correspondencia[v].toFixed(3); }), K.map(function (v) { var x = s.escala_media[v]; return x == null ? "" : x.toFixed(3); }), ESCALA.map(function (_, k) { return s.escala[k] == null ? "" : s.escala[k]; }));
+      [s.perfil.aplicadas_media.toFixed(2)], K4.map(function (v) { return s.perfil.correspondencia[v].toFixed(3); }), K.map(function (v) { var x = s.escala_media[v]; return x == null ? "" : x.toFixed(3); }), ESCALA.map(function (_, k) { return s.escala[k] == null ? "" : s.escala[k]; }), K.map(function (v) { var c = (s.comportamento || {})[v]; return c == null ? "" : c; }));
     CENAS.forEach(function (c) { var x = null; s.cenas.forEach(function (y) { if (y.id === c.id) x = y; }); x = x || { vetores: {}, aloc: [] };
       r = r.concat(K.map(function (v) { return x.vetores[v] == null ? "" : x.vetores[v]; }), [x.aplicadas, x.pos, x.tempo_ms], c.o.map(function (_, k) { return x.aloc[k] == null ? "" : x.aloc[k]; })); });
     return r;
   });
   var csvW = [hdr].concat(rows).map(csvLine).join("\n");
-  var L = [["pid", "cena", "exigencia", "posicao", "vetor", "energia", "exigido"].concat(SOCIO.map(function (s) { return s[0]; }), ["esc_vetor"])];
+  var L = [["pid", "cena", "exigencia", "posicao", "vetor", "energia", "exigido"].concat(SOCIO.map(function (s) { return s[0]; }), ["esc_vetor", "comp_vetor"])];
   A.forEach(function (s) { s.cenas.forEach(function (c) { K.forEach(function (v) { if (v === "VRES" && c.dem !== "RUPT") return;
     var e = s.escala_media[v];
-    L.push([s.pid, c.id, c.dem, c.pos, v, c.vetores[v], DEM[c.dem] === v ? 1 : 0].concat(SOCIO.map(function (x) { return (s.socio || {})[x[0]] || ""; }), [e == null ? "" : e.toFixed(3)])); }); }); });
+    L.push([s.pid, c.id, c.dem, c.pos, v, c.vetores[v], DEM[c.dem] === v ? 1 : 0].concat(SOCIO.map(function (x) { return (s.socio || {})[x[0]] || ""; }), [e == null ? "" : e.toFixed(3), (s.comportamento || {})[v] == null ? "" : s.comportamento[v]])); }); }); });
   var csvL = L.map(csvLine).join("\n");
   var O = [["pid", "cena", "exigencia", "posicao", "opcao", "ordem_na_tela", "nivel"].concat(K.map(function (v) { return "peso_" + v; }), SOCIO.map(function (s) { return s[0]; }))];
   A.forEach(function (s) { s.cenas.forEach(function (c) { var def = CENAS.filter(function (x) { return x.id === c.id; })[0]; if (!def) return;
@@ -102,6 +126,16 @@ function render(all) {
       var p = n ? mean(A.map(function (s) { return s.perfil.prop[v]; })) : 0;
       return '<div class="bar"><div class="lab"><span>' + V[v].nome + '</span><b style="color:' + V[v].cor + '">' + Math.round(p * 100) + '% · ' + f2(mean(vin(v))) + ' unid./cena</b></div><div class="track"><div class="fill" style="width:' + Math.round(p * 100) + '%;background:' + V[v].cor + '"></div></div></div>'; }).join("") + '</div>' +
     '<p class="note">Energia usada por cena: ' + f2(mean(A.map(function (s) { return s.perfil.aplicadas_media; }))) + ' de ' + ORCAMENTO + '. VRES conta só nas ' + N_RUPT + ' cenas com ruptura.</p></section>' +
+    '<section class="card"><h2>Validade de critério</h2><p class="hint">O vetor medido nas vinhetas prevê o comportamento real dos últimos 12 meses?</p>' +
+    '<div class="tablebox"><table><thead><tr><th>Vetor</th><th class="n">n</th><th class="n">Média se Sim</th><th class="n">Média se Não</th><th class="n">r</th><th class="n">r parcial</th></tr></thead><tbody>' +
+    crit.map(function (c) { return '<tr><td>' + chip(c.v) + '</td><td class="n">' + c.n + ' (' + c.sim + ' sim)</td><td class="n">' + f2(c.mSim) + '</td><td class="n">' + f2(c.mNao) + '</td><td class="n ' + cls(c.r, .15) + '">' + f2(c.r) + '</td><td class="n ' + cls(c.rp, .15) + '">' + f2(c.rp) + '</td></tr>'; }).join("") +
+    '</tbody></table></div><p class="note">r é a correlação ponto-bisserial entre a energia no vetor e ter feito aquilo de verdade. O r parcial controla escolaridade e renda: se ele se mantém, o vetor explica o comportamento além das condições socioeconômicas. O teste formal é o logit do comportamento sobre o vetor e os controles, no CSV largo (colunas comp_).</p></section>' +
+    '<section class="card"><h2>Energia usada por cena</h2><div class="hist">' + hist.map(function (h, i) { return '<div class="' + (i === ORCAMENTO ? 'full' : '') + '" style="height:' + Math.round(h / hmax * 100) + '%" title="' + h + '"></div>'; }).join("") + '</div>' +
+    '<div class="histlab">' + hist.map(function (_, i) { return '<span>' + i + '</span>'; }).join("") + '</div>' +
+    '<p class="' + (pctCheia > .6 ? 'note weak' : 'note') + '">' + Math.round(pctCheia * 100) + '% das cenas usaram a bateria inteira. ' + (pctCheia > .6 ? 'Acima de 60% os dados se aproximam de soma constante (ipsativos), e a magnitude absoluta perde sentido. Considere aumentar a bateria.' : 'Abaixo de 60% o total usado varia entre pessoas e cenas, e a magnitude absoluta se sustenta.') + '</p></section>' +
+    '<section class="card"><h2>Sensibilidade das ações conjuntas</h2><div class="tablebox"><table><thead><tr><th>Regra</th><th class="n">Convergente</th><th class="n">Discriminante</th><th class="n">r entre vetores</th></tr></thead><tbody>' +
+    sens.map(function (r) { return '<tr><td>' + r[0] + '</td><td class="n">' + f2(r[1]) + '</td><td class="n">' + f2(r[2]) + '</td><td class="n">' + f2(r[3]) + '</td></tr>'; }).join("") +
+    '</tbody></table></div><p class="note">Se as conclusões se mantêm nas três regras, o resultado não depende do peso arbitrado para as ações que juntam dois vetores.</p></section>' +
     '<section class="card"><h2>Consistência</h2><div class="tablebox"><table><thead><tr><th>Vetor</th><th class="n">α vinhetas</th><th class="n">α escala</th></tr></thead><tbody>' +
     K.map(function (v) { return '<tr><td>' + chip(v) + '</td><td class="n ' + cls(alfaVin[v], .6) + '">' + f2(alfaVin[v]) + '</td><td class="n ' + cls(alfaEsc[v], .6) + '">' + f2(alfaEsc[v]) + '</td></tr>'; }).join("") +
     '</tbody></table></div><p class="note">O alfa das vinhetas trata cada cena como um item e mede se quem aciona um vetor numa situação tende a acioná-lo nas outras. Referência usual de 0,60 a 0,70 para escalas curtas.</p></section>' +

@@ -114,3 +114,11 @@ textarea{width:100%;min-height:90px;font-family:var(--mono);font-size:.72rem;bac
 .battery .cell.low{background:var(--warn)}
 .battery .cell.off{background:transparent}
 .empty{font-size:.88rem;color:var(--warn);font-weight:600}
+
+.scale.three{grid-template-columns:repeat(3,1fr)}
+.scale.three button{font-family:var(--body);font-size:.85rem}
+.hist{display:flex;align-items:flex-end;gap:4px;height:90px}
+.hist div{flex:1;background:var(--accent);border-radius:3px 3px 0 0;min-height:2px}
+.hist div.full{background:var(--warn)}
+.histlab{display:flex;gap:4px}
+.histlab span{flex:1;text-align:center;font-family:var(--mono);font-size:.7rem;color:var(--muted)}

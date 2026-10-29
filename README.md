@@ -2,7 +2,7 @@
 
 Instrumento de validação dos vetores neuroeconômicos (VTCI, VSC, VFE, VEXO, VRES) da tese de doutorado em Economia (PPGE/UFPA).
 
-O participante passa por 12 vinhetas de saúde com exigência manipulada (informação técnica, conflito entre pessoas, aperto financeiro, barreira institucional e ruptura súbita) e marca, para cada ação simples ou conjunta, Nada, Pouco, Bastante ou Prioridade (0 a 3), dentro de uma bateria de 9 unidades de energia e atenção por cena (não dinheiro, para não contaminar o VFE nem depender da renda), podendo guardar energia. Depois responde a uma escala de autorrelato de 15 itens e a dados socioeconômicos.
+O participante passa por 12 vinhetas de saúde com exigência manipulada (informação técnica, conflito entre pessoas, aperto financeiro, barreira institucional e ruptura súbita) e marca, para cada ação simples ou conjunta, Nada, Pouco, Bastante ou Prioridade (0 a 3), dentro de uma bateria de 9 unidades de energia e atenção por cena (não dinheiro, para não contaminar o VFE nem depender da renda), podendo guardar energia. Depois responde a uma escala de autorrelato de 15 itens, a cinco perguntas sobre comportamento real nos últimos 12 meses (critério externo, um por vetor) e a dados socioeconômicos.
 
 - `index.html` app do participante
 - `painel.html` painel do pesquisador (`/painel`, pede a chave)
@@ -25,4 +25,4 @@ Importe o repositório na Vercel (sem build, site estático). O app fica na raiz
 
 ## Análises do painel
 
-Perfil médio, alfa por vetor nas vinhetas e na escala, efeito da exigência da cena (correspondência), matriz multitraço-multimétodo vinheta × escala, correlação entre vetores e exportação em CSV largo e longo.
+Validade de critério (vetor × comportamento real, bruto e controlando escolaridade e renda), distribuição da energia usada, sensibilidade da regra das ações conjuntas, perfil médio, alfa por vetor nas vinhetas e na escala, efeito da exigência da cena (correspondência), matriz multitraço-multimétodo vinheta × escala, correlação entre vetores e exportação em CSV largo e longo.

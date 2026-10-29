@@ -77,7 +77,7 @@ function render(all) {
     return r;
   });
   var csvW = [hdr].concat(rows).map(csvLine).join("\n");
-  var L = [["pid", "cena", "exigencia", "posicao", "vetor", "pontos", "exigido"].concat(SOCIO.map(function (s) { return s[0]; }), ["esc_vetor"])];
+  var L = [["pid", "cena", "exigencia", "posicao", "vetor", "energia", "exigido"].concat(SOCIO.map(function (s) { return s[0]; }), ["esc_vetor"])];
   A.forEach(function (s) { s.cenas.forEach(function (c) { K.forEach(function (v) { if (v === "VRES" && c.dem !== "RUPT") return;
     var e = s.escala_media[v];
     L.push([s.pid, c.id, c.dem, c.pos, v, c.vetores[v], DEM[c.dem] === v ? 1 : 0].concat(SOCIO.map(function (x) { return (s.socio || {})[x[0]] || ""; }), [e == null ? "" : e.toFixed(3)])); }); }); });
@@ -100,14 +100,14 @@ function render(all) {
     '<div class="row"><span class="note">Análises usam a primeira sessão de cada pessoa.</span><button class="btn ghost" id="rf">Atualizar</button></div></section>' +
     '<section class="card"><h2>Perfil médio da amostra</h2><div class="bars">' + K.map(function (v) {
       var p = n ? mean(A.map(function (s) { return s.perfil.prop[v]; })) : 0;
-      return '<div class="bar"><div class="lab"><span>' + V[v].nome + '</span><b style="color:' + V[v].cor + '">' + Math.round(p * 100) + '% · ' + f2(mean(vin(v))) + ' pontos/cena</b></div><div class="track"><div class="fill" style="width:' + Math.round(p * 100) + '%;background:' + V[v].cor + '"></div></div></div>'; }).join("") + '</div>' +
-    '<p class="note">Pontos usados por cena: ' + f2(mean(A.map(function (s) { return s.perfil.aplicadas_media; }))) + ' de ' + ORCAMENTO + '. VRES conta só nas ' + N_RUPT + ' cenas com ruptura.</p></section>' +
+      return '<div class="bar"><div class="lab"><span>' + V[v].nome + '</span><b style="color:' + V[v].cor + '">' + Math.round(p * 100) + '% · ' + f2(mean(vin(v))) + ' unid./cena</b></div><div class="track"><div class="fill" style="width:' + Math.round(p * 100) + '%;background:' + V[v].cor + '"></div></div></div>'; }).join("") + '</div>' +
+    '<p class="note">Energia usada por cena: ' + f2(mean(A.map(function (s) { return s.perfil.aplicadas_media; }))) + ' de ' + ORCAMENTO + '. VRES conta só nas ' + N_RUPT + ' cenas com ruptura.</p></section>' +
     '<section class="card"><h2>Consistência</h2><div class="tablebox"><table><thead><tr><th>Vetor</th><th class="n">α vinhetas</th><th class="n">α escala</th></tr></thead><tbody>' +
     K.map(function (v) { return '<tr><td>' + chip(v) + '</td><td class="n ' + cls(alfaVin[v], .6) + '">' + f2(alfaVin[v]) + '</td><td class="n ' + cls(alfaEsc[v], .6) + '">' + f2(alfaEsc[v]) + '</td></tr>'; }).join("") +
     '</tbody></table></div><p class="note">O alfa das vinhetas trata cada cena como um item e mede se quem aciona um vetor numa situação tende a acioná-lo nas outras. Referência usual de 0,60 a 0,70 para escalas curtas.</p></section>' +
     '<section class="card"><h2>Correspondência com a exigência da cena</h2><div class="tablebox"><table><thead><tr><th>Vetor</th><th class="n">Diferença média</th><th class="n">Pessoas com efeito positivo</th></tr></thead><tbody>' +
     K4.map(function (v) { return '<tr><td>' + chip(v) + '</td><td class="n ' + cls(corrM[v], .3) + '">' + f2(corrM[v]) + '</td><td class="n">' + corrPos[v] + ' de ' + n + '</td></tr>'; }).join("") +
-    '</tbody></table></div><p class="note">Pontos no vetor quando a cena o exige, menos pontos quando não exige. Positivo indica que as pessoas deslocam o acionamento conforme o cenário. O teste formal é o modelo multinível sobre o CSV longo: pontos ~ exigido × vetor + socioeconômicos + (1 | pid).</p></section>' +
+    '</tbody></table></div><p class="note">Energia no vetor quando a cena o exige, menos energia quando não exige. Positivo indica que as pessoas deslocam o acionamento conforme o cenário. O teste formal é o modelo multinível sobre o CSV longo: energia ~ exigido × vetor + socioeconômicos + (1 | pid).</p></section>' +
     '<section class="card"><h2>Matriz multitraço-multimétodo</h2>' + tab(mtmm, "Vinheta × escala") +
     '<p class="note">A diagonal em negrito é a validade convergente e deve superar os valores fora dela na mesma linha e coluna.</p>' +
     '<h3>Correlação entre vetores nas vinhetas</h3>' + tab(rvv, "Vinheta × vinheta") +

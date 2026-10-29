@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Painel · Sala de Espera</title>
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="style.css">
+<style>html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}.wrap{max-width:860px}</style>
+</head>
+<body>
+<div class="wrap">
+  <header><span class="brand">Sala de Espera</span><span class="senha">Painel do pesquisador</span></header>
+  <main id="app"></main>
+</div>
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script>
+function cls(x, ok) { return x == null || isNaN(x) ? "" : (x >= ok ? "good" : "weak"); }
+function chip(v) { return '<b class="chip" style="color:' + V[v].cor + '">' + v + '</b>'; }
+
+function login(err) {
+  var saved = ""; try { saved = sessionStorage.getItem("mvnes_key") || ""; } catch (e) {}
+  $("#app").innerHTML = '<section class="card"><span class="eyebrow">Acesso restrito</span><h2>Chave do painel</h2>' +
+    (err ? '<p class="weak">' + esc(err) + '</p>' : '') +
+    '<div class="field"><label for="key">Digite a chave</label><input type="text" id="key" autocomplete="off" value="' + esc(saved) + '"></div>' +
+    '<div class="row"><a class="note" href="./">Voltar ao app</a><button class="btn" id="go">Abrir</button></div></section>';
+  $("#go").onclick = function () { carregar($("#key").value.trim()); };
+  $("#key").onkeydown = function (e) { if (e.key === "Enter") carregar($("#key").value.trim()); };
+}
+
+function carregar(key) {
+  var url = (window.MVNES_CONFIG || {}).APPS_SCRIPT_URL;
+  if (!url) { login("A URL do Apps Script ainda não foi colada no arquivo config.js."); return; }
+  $("#app").innerHTML = '<section class="card"><h2>Carregando respostas…</h2></section>';
+  fetch(url + "?action=list&key=" + encodeURIComponent(key)).then(function (r) { return r.json(); }).then(function (d) {
+    if (!d || !d.ok) { login("Chave incorreta."); return; }
+    try { sessionStorage.setItem("mvnes_key", key); } catch (e) {}
+    render(d.sessoes || []);
+  }, function () { login("Não consegui falar com a planilha. Confira a URL no config.js e se o Apps Script está publicado para qualquer pessoa."); });
+}
+
+function render(all) {
+  var sess = all.filter(function (s) { return s && s.versao === VERSAO && s.perfil; });
+  var first = {};
+  sess.forEach(function (s) { var id = s.pid || s.data; if (!first[id] || s.data < first[id].data) first[id] = s; });
+  var A = Object.keys(first).map(function (k) { return first[k]; }), n = A.length;
+  function vin(v) { return A.map(function (s) { return s.perfil.mag[v]; }); }
+  function sc(v) { return A.map(function (s) { var x = s.escala_media[v]; return x == null ? 0 : x; }); }
+  function cenaVal(s, id, v) { for (var i = 0; i < s.cenas.length; i++) if (s.cenas[i].id === id) return s.cenas[i].vetores[v] || 0; return 0; }
+
+  var alfaVin = {}, alfaEsc = {};
+  K.forEach(function (v) {
+    var ids = CENAS.filter(function (c) { return v !== "VRES" || c.dem === "RUPT"; }).map(function (c) { return c.id; });
+    alfaVin[v] = alpha(ids.map(function (id) { return A.map(function (s) { return cenaVal(s, id, v); }); }));
+    var ks = []; ESCALA.forEach(function (e, k) { if (e[1] === v) ks.push(k); });
+    alfaEsc[v] = alpha(ks.map(function (k) { return A.map(function (s) { return s.escala[k] || 0; }); }));
+  });
+  var mtmm = K.map(function (a) { return K.map(function (b) { return pearson(vin(a), sc(b)); }); });
+  var rvv = K.map(function (a) { return K.map(function (b) { return pearson(vin(a), vin(b)); }); });
+  var diag = [], off = [];
+  K.forEach(function (_, i) { K.forEach(function (_, j) { var x = mtmm[i][j]; if (x != null) (i === j ? diag : off).push(x); }); });
+  var conv = mean(diag), disc = mean(off);
+  var corrM = {}, corrPos = {};
+  K4.forEach(function (v) { corrM[v] = mean(A.map(function (s) { return s.perfil.correspondencia[v]; })); corrPos[v] = A.filter(function (s) { return s.perfil.correspondencia[v] > 0; }).length; });
+
+  var hdr = ["sessao", "pid", "nome", "data"].concat(SOCIO.map(function (s) { return s[0]; }), K.map(function (v) { return "prop_" + v; }), K.map(function (v) { return "mag_" + v; }), ["aplicadas_media"],
+    K4.map(function (v) { return "corresp_" + v; }), K.map(function (v) { return "esc_" + v; }), ESCALA.map(function (_, k) { return "item" + (k + 1); }));
+  CENAS.forEach(function (c) { hdr = hdr.concat(K.map(function (v) { return c.id + "_" + v; }), [c.id + "_aplic", c.id + "_pos", c.id + "_ms"], c.o.map(function (_, k) { return c.id + "_op" + (k + 1); })); });
+  var rows = sess.map(function (s, i) {
+    var r = [i + 1, s.pid, s.nome, s.data].concat(SOCIO.map(function (x) { return (s.socio || {})[x[0]] || ""; }), K.map(function (v) { return s.perfil.prop[v].toFixed(4); }), K.map(function (v) { return s.perfil.mag[v].toFixed(3); }),
+      [s.perfil.aplicadas_media.toFixed(2)], K4.map(function (v) { return s.perfil.correspondencia[v].toFixed(3); }), K.map(function (v) { var x = s.escala_media[v]; return x == null ? "" : x.toFixed(3); }), ESCALA.map(function (_, k) { return s.escala[k] == null ? "" : s.escala[k]; }));
+    CENAS.forEach(function (c) { var x = null; s.cenas.forEach(function (y) { if (y.id === c.id) x = y; }); x = x || { vetores: {}, aloc: [] };
+      r = r.concat(K.map(function (v) { return x.vetores[v] == null ? "" : x.vetores[v]; }), [x.aplicadas, x.pos, x.tempo_ms], c.o.map(function (_, k) { return x.aloc[k] == null ? "" : x.aloc[k]; })); });
+    return r;
+  });
+  var csvW = [hdr].concat(rows).map(csvLine).join("\n");
+  var L = [["pid", "cena", "exigencia", "posicao", "vetor", "fichas", "exigido"].concat(SOCIO.map(function (s) { return s[0]; }), ["esc_vetor"])];
+  A.forEach(function (s) { s.cenas.forEach(function (c) { K.forEach(function (v) { if (v === "VRES" && c.dem !== "RUPT") return;
+    var e = s.escala_media[v];
+    L.push([s.pid, c.id, c.dem, c.pos, v, c.vetores[v], DEM[c.dem] === v ? 1 : 0].concat(SOCIO.map(function (x) { return (s.socio || {})[x[0]] || ""; }), [e == null ? "" : e.toFixed(3)])); }); }); });
+  var csvL = L.map(csvLine).join("\n");
+
+  function tab(M, cap) {
+    return '<div class="tablebox"><table><thead><tr><th>' + cap + '</th>' + K.map(function (v) { return '<th class="n">' + v + '</th>'; }).join("") + '</tr></thead><tbody>' +
+      K.map(function (a, i) { return '<tr><td>' + chip(a) + '</td>' + K.map(function (_, j) { return '<td class="n" style="' + (i === j ? 'font-weight:700' : '') + '">' + f2(M[i][j]) + '</td>'; }).join("") + '</tr>'; }).join("") + '</tbody></table></div>';
+  }
+  $("#app").innerHTML =
+    '<section class="card"><span class="eyebrow">Versão ' + VERSAO + '</span><h2>' + n + ' participante' + (n === 1 ? '' : 's') + ' · ' + sess.length + ' sessões</h2>' +
+    (n < 30 ? '<p class="note weak">Com menos de 30 participantes as estatísticas são instáveis. Use o painel para conferir se a coleta funciona.</p>' : '') +
+    '<div class="stats"><div class="stat"><div class="big">' + f2(conv) + '</div><small>correlação média do mesmo vetor entre vinheta e escala</small></div>' +
+    '<div class="stat"><div class="big">' + f2(disc) + '</div><small>correlação média entre vetores diferentes</small></div></div>' +
+    '<p class="note">Há evidência de que os vetores são distintos quando o primeiro número supera claramente o segundo (Campbell e Fiske, 1959).</p>' +
+    '<div class="row"><span class="note">Análises usam a primeira sessão de cada pessoa.</span><button class="btn ghost" id="rf">Atualizar</button></div></section>' +
+    '<section class="card"><h2>Perfil médio da amostra</h2><div class="bars">' + K.map(function (v) {
+      var p = n ? mean(A.map(function (s) { return s.perfil.prop[v]; })) : 0;
+      return '<div class="bar"><div class="lab"><span>' + V[v].nome + '</span><b style="color:' + V[v].cor + '">' + Math.round(p * 100) + '% · ' + f2(mean(vin(v))) + ' fichas/cena</b></div><div class="track"><div class="fill" style="width:' + Math.round(p * 100) + '%;background:' + V[v].cor + '"></div></div></div>'; }).join("") + '</div>' +
+    '<p class="note">Fichas aplicadas por cena: ' + f2(mean(A.map(function (s) { return s.perfil.aplicadas_media; }))) + ' de 10. VRES conta só nas ' + N_RUPT + ' cenas com ruptura.</p></section>' +
+    '<section class="card"><h2>Consistência</h2><div class="tablebox"><table><thead><tr><th>Vetor</th><th class="n">α vinhetas</th><th class="n">α escala</th></tr></thead><tbody>' +
+    K.map(function (v) { return '<tr><td>' + chip(v) + '</td><td class="n ' + cls(alfaVin[v], .6) + '">' + f2(alfaVin[v]) + '</td><td class="n ' + cls(alfaEsc[v], .6) + '">' + f2(alfaEsc[v]) + '</td></tr>'; }).join("") +
+    '</tbody></table></div><p class="note">O alfa das vinhetas trata cada cena como um item e mede se quem aciona um vetor numa situação tende a acioná-lo nas outras. Referência usual de 0,60 a 0,70 para escalas curtas.</p></section>' +
+    '<section class="card"><h2>Correspondência com a exigência da cena</h2><div class="tablebox"><table><thead><tr><th>Vetor</th><th class="n">Diferença média</th><th class="n">Pessoas com efeito positivo</th></tr></thead><tbody>' +
+    K4.map(function (v) { return '<tr><td>' + chip(v) + '</td><td class="n ' + cls(corrM[v], .3) + '">' + f2(corrM[v]) + '</td><td class="n">' + corrPos[v] + ' de ' + n + '</td></tr>'; }).join("") +
+    '</tbody></table></div><p class="note">Fichas no vetor quando a cena o exige, menos fichas quando não exige. Positivo indica que as pessoas deslocam o acionamento conforme o cenário. O teste formal é o modelo multinível sobre o CSV longo: fichas ~ exigido × vetor + socioeconômicos + (1 | pid).</p></section>' +
+    '<section class="card"><h2>Matriz multitraço-multimétodo</h2>' + tab(mtmm, "Vinheta × escala") +
+    '<p class="note">A diagonal em negrito é a validade convergente e deve superar os valores fora dela na mesma linha e coluna.</p>' +
+    '<h3>Correlação entre vetores nas vinhetas</h3>' + tab(rvv, "Vinheta × vinheta") +
+    '<p class="note">Correlações altas entre todos indicariam um fator único, e não cinco vetores.</p></section>' +
+    '<section class="card"><h2>Exportar</h2><p class="hint">Formato largo, uma linha por sessão:</p><textarea id="csvw" readonly>' + esc(csvW) + '</textarea>' +
+    '<div class="row"><span class="note">' + sess.length + ' linhas</span><button class="btn" id="cw">Copiar CSV largo</button></div>' +
+    '<p class="hint">Formato longo, pessoa × cena × vetor, para R ou Stata:</p><textarea id="csvl" readonly>' + esc(csvL) + '</textarea>' +
+    '<div class="row"><span class="note">' + (L.length - 1) + ' linhas</span><button class="btn" id="cl">Copiar CSV longo</button></div></section>';
+  $("#cw").onclick = function () { copyText($("#csvw"), $("#cw")); };
+  $("#cl").onclick = function () { copyText($("#csvl"), $("#cl")); };
+  $("#rf").onclick = function () { var k = ""; try { k = sessionStorage.getItem("mvnes_key") || ""; } catch (e) {} carregar(k); };
+}
+
+(function () { var k = ""; try { k = sessionStorage.getItem("mvnes_key") || ""; } catch (e) {} if (k) carregar(k); else login(); })();
+</script>
+</body>
+</html>

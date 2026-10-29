@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Sala de Espera</title>
+<meta name="description" content="Doze situações de saúde para entender como cada pessoa decide.">
+<meta property="og:title" content="Sala de Espera">
+<meta property="og:description" content="Doze situações de saúde. Não existe resposta certa. Veja o desenho do seu jeito de decidir.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Young+Serif&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="style.css">
+<style>html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}</style>
+</head>
+<body>
+<div class="wrap">
+  <header><span class="brand">Sala de Espera</span><span class="senha" id="senha">Senha 001</span></header>
+  <main id="app"><section class="card"><p class="lede">Carregando…</p></section></main>
+</div>
+<script src="config.js"></script>
+<script src="app.js"></script>
+<script>
+var S;
+var TOTAL = CENAS.length + 2;
+function pid() {
+  var id = null;
+  try { id = localStorage.getItem("mvnes_pid"); } catch (e) {}
+  if (!id) { id = "p" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); try { localStorage.setItem("mvnes_pid", id); } catch (e) {} }
+  return id;
+}
+function reset() { S = { nome: "", i: 0, ordem: shuffle(range(CENAS.length)), cenas: [], escala: {}, socio: {}, aloc: null, optOrd: null, t0: 0, inicio: new Date().toISOString() }; }
+function prog(step) { return '<div class="progress" aria-label="Etapa ' + (step + 1) + ' de ' + TOTAL + '">' + range(TOTAL).map(function (k) { return '<span class="' + (k < step ? 'done' : k === step ? 'now' : '') + '"></span>'; }).join("") + '</div>'; }
+function now() { return (window.performance && performance.now) ? performance.now() : Date.now(); }
+
+function intro() {
+  reset(); $("#senha").textContent = "Senha 001";
+  $("#app").innerHTML = '<section class="card">' +
+    '<span class="eyebrow">Doze situações · uns 12 minutos</span>' +
+    '<h1>Cada pessoa resolve a vida do seu jeito.</h1>' +
+    '<p class="lede">Você vai passar por doze situações de saúde. Em cada uma, recebe 10 fichas que representam seu tempo e sua energia daquela semana. Coloque as fichas nas coisas que faria de verdade, quantas quiser em cada uma. O que não usar fica guardado para o resto da sua vida.</p>' +
+    '<p class="lede">Não existe jeito certo de gastar as fichas. No fim, você vê o desenho do seu modo de decidir.</p>' +
+    '<div class="field"><label for="nome">Como quer ser chamado? (opcional)</label><input type="text" id="nome" placeholder="Seu primeiro nome" autocomplete="given-name"></div>' +
+    '<details class="tcle"><summary>Termo de consentimento (ler)</summary><p class="note">Esta é uma pesquisa de doutorado em Economia (PPGE/UFPA) sobre como as pessoas tomam decisões em situações de saúde. A participação é voluntária e leva cerca de 12 minutos. Não há respostas certas ou erradas, nem riscos além de um eventual desconforto ao imaginar situações de doença. Você pode parar a qualquer momento. As respostas são analisadas apenas de forma agregada, sem identificar ninguém, e o nome é opcional. Dúvidas: drclaudiocutrim@gmail.com.</p></details>' +
+    '<label class="consent" for="ok"><input type="checkbox" id="ok"> Li o termo e aceito participar</label>' +
+    '<div class="row"><span class="note">Nada aqui é avaliação médica.</span><button class="btn" id="go" disabled>Começar</button></div></section>';
+  $("#ok").onchange = function (e) { $("#go").disabled = !e.target.checked; };
+  $("#go").onclick = function () { S.nome = $("#nome").value.trim(); cena(); };
+  toTop();
+}
+
+function cena() {
+  var c = CENAS[S.ordem[S.i]];
+  S.optOrd = shuffle(range(c.o.length)); S.aloc = c.o.map(function () { return 0; }); S.t0 = now();
+  $("#senha").textContent = "Senha " + ("00" + (S.i + 1)).slice(-3);
+  $("#app").innerHTML = '<section class="card">' + prog(S.i) +
+    '<span class="eyebrow">Situação ' + (S.i + 1) + ' de ' + CENAS.length + '</span>' +
+    '<h2>' + c.t + '</h2><p>' + c.ctx + '</p>' +
+    (c.rupt ? '<div class="event"><b>De repente</b>' + c.rupt + '</div>' : '') +
+    '<p class="ask">Onde você coloca suas fichas esta semana?</p>' +
+    '<div class="purse" aria-live="polite"><div class="coins" id="coins"></div><span class="left" id="left"></span></div>' +
+    '<div class="opts">' + S.optOrd.map(function (k) {
+      return '<div class="alloc" id="a' + k + '"><span class="txt">' + c.o[k][0] + '</span><span class="step"><button id="m' + k + '" aria-label="Tirar uma ficha">−</button><output id="o' + k + '">0</output><button id="p' + k + '" aria-label="Pôr uma ficha">+</button></span></div>';
+    }).join("") +
+    '<div class="alloc keep"><span class="txt">Guardo para o resto da vida (trabalho, família, descanso)</span><span class="step"><output id="keep">10</output></span></div></div>' +
+    '<div class="row"><span class="note">Pode guardar todas, se for o caso.</span><button class="btn" id="nx">Continuar</button></div></section>';
+  function draw() {
+    var used = S.aloc.reduce(function (a, b) { return a + b; }, 0);
+    $("#coins").innerHTML = range(FICHAS).map(function (k) { return '<span class="coin ' + (k < FICHAS - used ? '' : 'off') + '"></span>'; }).join("");
+    $("#left").textContent = (FICHAS - used) + " de " + FICHAS + " fichas livres";
+    $("#keep").textContent = FICHAS - used;
+    c.o.forEach(function (_, k) {
+      $("#o" + k).textContent = S.aloc[k]; $("#m" + k).disabled = !S.aloc[k]; $("#p" + k).disabled = used >= FICHAS;
+      var el = $("#a" + k); if (S.aloc[k] > 0) el.classList.add("on"); else el.classList.remove("on");
+    });
+  }
+  c.o.forEach(function (_, k) {
+    $("#p" + k).onclick = function () { S.aloc[k]++; draw(); };
+    $("#m" + k).onclick = function () { S.aloc[k]--; draw(); };
+  });
+  draw();
+  $("#nx").onclick = function () {
+    S.cenas.push({ id: c.id, dem: c.dem, pos: S.i + 1, aloc: S.aloc.slice(), ordem_opcoes: S.optOrd, vetores: vetoresDaCena(c, S.aloc),
+      aplicadas: S.aloc.reduce(function (a, b) { return a + b; }, 0), tempo_ms: Math.round(now() - S.t0) });
+    S.i++; if (S.i < CENAS.length) cena(); else escala();
+  };
+  toTop();
+}
+
+function escala() {
+  $("#senha").textContent = "Quase lá";
+  var ord = shuffle(range(ESCALA.length));
+  $("#app").innerHTML = '<section class="card">' + prog(CENAS.length) +
+    '<span class="eyebrow">Sobre você</span><h2>Quanto cada frase combina com você?</h2><p class="hint">1 é nada a ver comigo, 5 é exatamente eu.</p>' +
+    '<div class="likert">' + ord.map(function (k) {
+      return '<div class="item"><span>' + ESCALA[k][0] + '</span><div class="scale" role="group">' + [1, 2, 3, 4, 5].map(function (n) { return '<button data-k="' + k + '" data-n="' + n + '" aria-pressed="false">' + n + '</button>'; }).join("") + '</div></div>';
+    }).join("") + '</div>' +
+    '<div class="row"><span class="note" id="faltam">' + ESCALA.length + ' frases sem resposta</span><button class="btn" id="nx" disabled>Continuar</button></div></section>';
+  Array.prototype.forEach.call(document.querySelectorAll(".scale button"), function (b) {
+    b.onclick = function () {
+      S.escala[+b.dataset.k] = +b.dataset.n;
+      Array.prototype.forEach.call(b.parentNode.querySelectorAll("button"), function (x) { x.setAttribute("aria-pressed", x === b); });
+      var f = ESCALA.length - Object.keys(S.escala).length;
+      $("#faltam").textContent = f ? f + (f > 1 ? " frases sem resposta" : " frase sem resposta") : "Tudo respondido";
+      $("#nx").disabled = f > 0;
+    };
+  });
+  $("#nx").onclick = socio; toTop();
+}
+
+function socio() {
+  $("#app").innerHTML = '<section class="card">' + prog(CENAS.length + 1) +
+    '<span class="eyebrow">Para a análise</span><h2>Só mais um pouco sobre você</h2><p class="hint">Serve para comparar pessoas em condições parecidas.</p>' +
+    SOCIO.map(function (s) { return '<div class="field"><label for="s_' + s[0] + '">' + s[1] + '</label><select id="s_' + s[0] + '"><option value="">Escolha</option>' + s[2].map(function (o) { return '<option>' + o + '</option>'; }).join("") + '</select></div>'; }).join("") +
+    '<div class="row"><span class="note">Onde faz sentido, há a opção de não dizer.</span><button class="btn" id="nx" disabled>Ver meu desenho</button></div></section>';
+  function chk() { $("#nx").disabled = SOCIO.some(function (s) { return !$("#s_" + s[0]).value; }); }
+  SOCIO.forEach(function (s) { $("#s_" + s[0]).onchange = chk; });
+  $("#nx").onclick = function () { SOCIO.forEach(function (s) { S.socio[s[0]] = $("#s_" + s[0]).value; }); resultado(); };
+  toTop();
+}
+
+function enviar(reg) {
+  var msg = function (t) { var el = $("#savestate"); if (el) el.textContent = t; };
+  var url = (window.MVNES_CONFIG || {}).APPS_SCRIPT_URL;
+  if (!url) { msg("A gravação ainda não está configurada. Copie os dados abaixo e envie ao pesquisador."); return; }
+  try {
+    fetch(url, { method: "POST", mode: "no-cors", body: JSON.stringify(reg) })
+      .then(function () { msg("Respostas enviadas. Obrigado por participar."); },
+            function () { msg("Não foi possível enviar agora. Verifique a internet ou copie os dados abaixo e envie ao pesquisador."); });
+  } catch (e) { msg("Não foi possível enviar. Copie os dados abaixo e envie ao pesquisador."); }
+}
+
+function resultado() {
+  $("#senha").textContent = "Alta";
+  var P = perfil(S.cenas), E = escalaMedia(S.escala);
+  var REG = { versao: VERSAO, pid: pid(), nome: S.nome, inicio: S.inicio, data: new Date().toISOString(), socio: S.socio, escala: S.escala, escala_media: E,
+    perfil: { prop: P.prop, mag: P.mag, aplicadas_media: P.aplic, correspondencia: P.corr }, cenas: S.cenas };
+  var ord = K.slice().sort(function (a, b) { return P.prop[b] - P.prop[a]; });
+  var lead = ord.filter(function (v) { return P.prop[v] > 0; }).slice(0, 2);
+  var nome = S.nome ? esc(S.nome) + ", " : "";
+  var frase = lead.length
+    ? nome + "nestas doze situações sua energia foi mais para o lado " + lead.map(function (v) { return V[v].nome.toLowerCase(); }).join(" e ") + ". É um retrato de como você se mobilizou hoje, diante destes cenários. Em outro momento o arranjo pode mudar."
+    : nome + "você guardou suas fichas em quase todas as situações. Isso também é um jeito de decidir.";
+  var porDem = Object.keys(NOME_DEM).map(function (d) {
+    var cs = S.cenas.filter(function (c) { return c.dem === d; }); var t = {};
+    K.forEach(function (v) { t[v] = cs.reduce(function (a, c) { return a + c.vetores[v]; }, 0); });
+    var w = K.slice().sort(function (a, b) { return t[b] - t[a]; })[0];
+    return [d, cs.length, t[w] > 0 ? w : null];
+  });
+  $("#app").innerHTML =
+    '<section class="card"><span class="eyebrow">Seu estado neuroeconômico nestas situações</span><h1>Para onde foi a sua energia</h1><p>' + frase + '</p>' +
+    '<div class="bars">' + ord.map(function (v) { var p = Math.round(P.prop[v] * 100);
+      return '<div class="bar"><div class="lab"><span>' + V[v].nome + '</span><b style="color:' + V[v].cor + '">' + p + '%</b></div><div class="track"><div class="fill" style="width:' + p + '%;background:' + V[v].cor + '"></div></div><p class="desc">' + V[v].txt + '</p></div>'; }).join("") + '</div>' +
+    '<p class="note">Proporção das fichas que você aplicou. Ações que juntavam duas coisas contaram metade para cada.</p></section>' +
+    '<section class="card"><h2>Quanto você se mobilizou</h2><div class="stats">' +
+    '<div class="stat"><div class="big">' + P.aplic.toFixed(1) + '</div><small>fichas aplicadas por situação, de 10</small></div>' +
+    '<div class="stat"><div class="big">' + K.filter(function (v) { return P.tot[v] > 0; }).length + '</div><small>dos 5 vetores foram acionados ao menos uma vez</small></div></div>' +
+    '<div class="tablebox"><table><thead><tr><th>Quando a situação trazia</th><th>O que mais apareceu</th></tr></thead><tbody>' +
+    porDem.map(function (r) { return '<tr><td>' + NOME_DEM[r[0]] + ' <span class="note">(' + r[1] + ')</span></td><td>' + (r[2] ? '<span class="chip" style="color:' + V[r[2]].cor + '">' + V[r[2]].nome + '</span>' : '<span class="note">guardou as fichas</span>') + '</td></tr>'; }).join("") +
+    '</tbody></table></div><p class="note">Se o que aparece muda conforme a situação, você ajusta o modo de agir ao que o momento pede.</p></section>' +
+    '<section class="card"><h2>Dados desta sessão</h2><p class="hint" id="savestate" role="status">Enviando respostas…</p><textarea id="json" readonly>' + esc(JSON.stringify(REG)) + '</textarea>' +
+    '<div class="row"><button class="btn ghost" id="again">Recomeçar</button><button class="btn" id="cp">Copiar dados</button></div></section>';
+  enviar(REG);
+  $("#cp").onclick = function () { copyText($("#json"), $("#cp")); };
+  $("#again").onclick = intro; toTop();
+}
+intro();
+</script>
+</body>
+</html>

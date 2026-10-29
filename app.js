@@ -1,5 +1,5 @@
 /* MVNES · Sala de Espera — dados do instrumento e cálculos compartilhados (participante e painel) */
-var VERSAO = "3.0";
+var VERSAO = "3.1";
 var V = {
   VTCI: { nome: "Técnico-científico-intelectual", cor: "var(--v1)", txt: "Entender, interpretar, buscar a explicação do que está acontecendo." },
   VSC:  { nome: "Social-comunicacional", cor: "var(--v2)", txt: "Conversar, pedir apoio, negociar, ler as pessoas e as próprias reações." },
@@ -11,7 +11,8 @@ var K = Object.keys(V);
 var K4 = ["VTCI", "VSC", "VFE", "VEXO"];
 var DEM = { TEC: "VTCI", SOC: "VSC", FIN: "VFE", INST: "VEXO", RUPT: "VRES" };
 var NOME_DEM = { TEC: "informação técnica", SOC: "conflito entre pessoas", FIN: "aperto financeiro", INST: "barreira institucional", RUPT: "imprevisto" };
-var FICHAS = 10;
+var ORCAMENTO = 6;            /* pontos de tempo e energia por cena */
+var NIVEIS = ["Nada", "Pouco", "Bastante", "Prioridade"];  /* 0 a 3 por ação */
 
 /* Cada cena manipula uma exigência (dem). Opções: [texto, {vetor: peso}] */
 var CENAS = [

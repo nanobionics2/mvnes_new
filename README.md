@@ -2,7 +2,7 @@
 
 Instrumento de validação dos vetores neuroeconômicos (VTCI, VSC, VFE, VEXO, VRES) da tese de doutorado em Economia (PPGE/UFPA).
 
-O participante passa por 12 vinhetas de saúde com exigência manipulada (informação técnica, conflito entre pessoas, aperto financeiro, barreira institucional e ruptura súbita) e distribui 10 fichas de tempo e energia entre ações simples e conjuntas, podendo guardar fichas. Depois responde a uma escala de autorrelato de 15 itens e a dados socioeconômicos.
+O participante passa por 12 vinhetas de saúde com exigência manipulada (informação técnica, conflito entre pessoas, aperto financeiro, barreira institucional e ruptura súbita) e marca, para cada ação simples ou conjunta, Nada, Pouco, Bastante ou Prioridade (0 a 3), dentro de um orçamento de 6 pontos por cena, podendo guardar pontos. Depois responde a uma escala de autorrelato de 15 itens e a dados socioeconômicos.
 
 - `index.html` app do participante
 - `painel.html` painel do pesquisador (`/painel`, pede a chave)

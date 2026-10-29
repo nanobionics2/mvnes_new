@@ -37,8 +37,8 @@ function intro() {
   $("#app").innerHTML = '<section class="card">' +
     '<span class="eyebrow">Doze situações · uns 12 minutos</span>' +
     '<h1>Cada pessoa resolve a vida do seu jeito.</h1>' +
-    '<p class="lede">Você vai passar por doze situações de saúde. Em cada uma, recebe 10 fichas que representam seu tempo e sua energia daquela semana. Coloque as fichas nas coisas que faria de verdade, quantas quiser em cada uma. O que não usar fica guardado para o resto da sua vida.</p>' +
-    '<p class="lede">Não existe jeito certo de gastar as fichas. No fim, você vê o desenho do seu modo de decidir.</p>' +
+    '<p class="lede">Você vai passar por doze situações de saúde. Em cada uma, você tem 6 pontos de tempo e energia para aquela semana. Para cada ação, toque em Nada, Pouco, Bastante ou Prioridade, conforme o quanto faria de verdade. Pouco usa 1 ponto, Bastante usa 2 e Prioridade usa 3. O que sobrar fica guardado para o resto da sua vida.</p>' +
+    '<p class="lede">Não existe jeito certo de usar os pontos. No fim, você vê o desenho do seu modo de decidir.</p>' +
     '<div class="field"><label for="nome">Como quer ser chamado? (opcional)</label><input type="text" id="nome" placeholder="Seu primeiro nome" autocomplete="given-name"></div>' +
     '<details class="tcle"><summary>Termo de consentimento (ler)</summary><p class="note">Esta é uma pesquisa de doutorado em Economia (PPGE/UFPA) sobre como as pessoas tomam decisões em situações de saúde. A participação é voluntária e leva cerca de 12 minutos. Não há respostas certas ou erradas, nem riscos além de um eventual desconforto ao imaginar situações de doença. Você pode parar a qualquer momento. As respostas são analisadas apenas de forma agregada, sem identificar ninguém, e o nome é opcional. Dúvidas: drclaudiocutrim@gmail.com.</p></details>' +
     '<label class="consent" for="ok"><input type="checkbox" id="ok"> Li o termo e aceito participar</label>' +
@@ -56,26 +56,30 @@ function cena() {
     '<span class="eyebrow">Situação ' + (S.i + 1) + ' de ' + CENAS.length + '</span>' +
     '<h2>' + c.t + '</h2><p>' + c.ctx + '</p>' +
     (c.rupt ? '<div class="event"><b>De repente</b>' + c.rupt + '</div>' : '') +
-    '<p class="ask">Onde você coloca suas fichas esta semana?</p>' +
+    '<p class="ask">Quanto de você vai para cada coisa esta semana?</p>' +
     '<div class="purse" aria-live="polite"><div class="coins" id="coins"></div><span class="left" id="left"></span></div>' +
     '<div class="opts">' + S.optOrd.map(function (k) {
-      return '<div class="alloc" id="a' + k + '"><span class="txt">' + c.o[k][0] + '</span><span class="step"><button id="m' + k + '" aria-label="Tirar uma ficha">−</button><output id="o' + k + '">0</output><button id="p' + k + '" aria-label="Pôr uma ficha">+</button></span></div>';
+      return '<div class="alloc" id="a' + k + '"><span class="txt">' + c.o[k][0] + '</span><div class="lv" role="group" aria-label="Quanto faria">' +
+        NIVEIS.map(function (nm, n) { return '<button id="b' + k + '_' + n + '" aria-pressed="' + (n === 0) + '">' + nm + '</button>'; }).join("") + '</div></div>';
     }).join("") +
-    '<div class="alloc keep"><span class="txt">Guardo para o resto da vida (trabalho, família, descanso)</span><span class="step"><output id="keep">10</output></span></div></div>' +
-    '<div class="row"><span class="note">Pode guardar todas, se for o caso.</span><button class="btn" id="nx">Continuar</button></div></section>';
+    '<div class="alloc keep"><span class="txt">Guardo para o resto da vida (trabalho, família, descanso)</span><span class="step"><output id="keep">' + ORCAMENTO + '</output></span></div></div>' +
+    '<div class="row"><span class="note">Pode deixar tudo em Nada, se for o caso.</span><button class="btn" id="nx">Continuar</button></div></section>';
   function draw() {
     var used = S.aloc.reduce(function (a, b) { return a + b; }, 0);
-    $("#coins").innerHTML = range(FICHAS).map(function (k) { return '<span class="coin ' + (k < FICHAS - used ? '' : 'off') + '"></span>'; }).join("");
-    $("#left").textContent = (FICHAS - used) + " de " + FICHAS + " fichas livres";
-    $("#keep").textContent = FICHAS - used;
+    $("#coins").innerHTML = range(ORCAMENTO).map(function (k) { return '<span class="coin ' + (k < ORCAMENTO - used ? '' : 'off') + '"></span>'; }).join("");
+    $("#left").textContent = (ORCAMENTO - used) + " de " + ORCAMENTO + " pontos livres";
+    $("#keep").textContent = ORCAMENTO - used;
     c.o.forEach(function (_, k) {
-      $("#o" + k).textContent = S.aloc[k]; $("#m" + k).disabled = !S.aloc[k]; $("#p" + k).disabled = used >= FICHAS;
       var el = $("#a" + k); if (S.aloc[k] > 0) el.classList.add("on"); else el.classList.remove("on");
+      NIVEIS.forEach(function (_, n) {
+        var b = $("#b" + k + "_" + n);
+        b.setAttribute("aria-pressed", S.aloc[k] === n);
+        b.disabled = used - S.aloc[k] + n > ORCAMENTO;
+      });
     });
   }
   c.o.forEach(function (_, k) {
-    $("#p" + k).onclick = function () { S.aloc[k]++; draw(); };
-    $("#m" + k).onclick = function () { S.aloc[k]--; draw(); };
+    NIVEIS.forEach(function (_, n) { $("#b" + k + "_" + n).onclick = function () { S.aloc[k] = n; draw(); }; });
   });
   draw();
   $("#nx").onclick = function () {
@@ -139,7 +143,7 @@ function resultado() {
   var nome = S.nome ? esc(S.nome) + ", " : "";
   var frase = lead.length
     ? nome + "nestas doze situações sua energia foi mais para o lado " + lead.map(function (v) { return V[v].nome.toLowerCase(); }).join(" e ") + ". É um retrato de como você se mobilizou hoje, diante destes cenários. Em outro momento o arranjo pode mudar."
-    : nome + "você guardou suas fichas em quase todas as situações. Isso também é um jeito de decidir.";
+    : nome + "você guardou seus pontos em quase todas as situações. Isso também é um jeito de decidir.";
   var porDem = Object.keys(NOME_DEM).map(function (d) {
     var cs = S.cenas.filter(function (c) { return c.dem === d; }); var t = {};
     K.forEach(function (v) { t[v] = cs.reduce(function (a, c) { return a + c.vetores[v]; }, 0); });
@@ -150,12 +154,12 @@ function resultado() {
     '<section class="card"><span class="eyebrow">Seu estado neuroeconômico nestas situações</span><h1>Para onde foi a sua energia</h1><p>' + frase + '</p>' +
     '<div class="bars">' + ord.map(function (v) { var p = Math.round(P.prop[v] * 100);
       return '<div class="bar"><div class="lab"><span>' + V[v].nome + '</span><b style="color:' + V[v].cor + '">' + p + '%</b></div><div class="track"><div class="fill" style="width:' + p + '%;background:' + V[v].cor + '"></div></div><p class="desc">' + V[v].txt + '</p></div>'; }).join("") + '</div>' +
-    '<p class="note">Proporção das fichas que você aplicou. Ações que juntavam duas coisas contaram metade para cada.</p></section>' +
+    '<p class="note">Proporção dos pontos que você usou. Ações que juntavam duas coisas contaram metade para cada.</p></section>' +
     '<section class="card"><h2>Quanto você se mobilizou</h2><div class="stats">' +
-    '<div class="stat"><div class="big">' + P.aplic.toFixed(1) + '</div><small>fichas aplicadas por situação, de 10</small></div>' +
+    '<div class="stat"><div class="big">' + P.aplic.toFixed(1) + '</div><small>pontos usados por situação, de 6</small></div>' +
     '<div class="stat"><div class="big">' + K.filter(function (v) { return P.tot[v] > 0; }).length + '</div><small>dos 5 vetores foram acionados ao menos uma vez</small></div></div>' +
     '<div class="tablebox"><table><thead><tr><th>Quando a situação trazia</th><th>O que mais apareceu</th></tr></thead><tbody>' +
-    porDem.map(function (r) { return '<tr><td>' + NOME_DEM[r[0]] + ' <span class="note">(' + r[1] + ')</span></td><td>' + (r[2] ? '<span class="chip" style="color:' + V[r[2]].cor + '">' + V[r[2]].nome + '</span>' : '<span class="note">guardou as fichas</span>') + '</td></tr>'; }).join("") +
+    porDem.map(function (r) { return '<tr><td>' + NOME_DEM[r[0]] + ' <span class="note">(' + r[1] + ')</span></td><td>' + (r[2] ? '<span class="chip" style="color:' + V[r[2]].cor + '">' + V[r[2]].nome + '</span>' : '<span class="note">guardou os pontos</span>') + '</td></tr>'; }).join("") +
     '</tbody></table></div><p class="note">Se o que aparece muda conforme a situação, você ajusta o modo de agir ao que o momento pede.</p></section>' +
     '<section class="card"><h2>Dados desta sessão</h2><p class="hint" id="savestate" role="status">Enviando respostas…</p><textarea id="json" readonly>' + esc(JSON.stringify(REG)) + '</textarea>' +
     '<div class="row"><button class="btn ghost" id="again">Recomeçar</button><button class="btn" id="cp">Copiar dados</button></div></section>';

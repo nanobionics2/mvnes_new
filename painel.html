@@ -77,11 +77,15 @@ function render(all) {
     return r;
   });
   var csvW = [hdr].concat(rows).map(csvLine).join("\n");
-  var L = [["pid", "cena", "exigencia", "posicao", "vetor", "fichas", "exigido"].concat(SOCIO.map(function (s) { return s[0]; }), ["esc_vetor"])];
+  var L = [["pid", "cena", "exigencia", "posicao", "vetor", "pontos", "exigido"].concat(SOCIO.map(function (s) { return s[0]; }), ["esc_vetor"])];
   A.forEach(function (s) { s.cenas.forEach(function (c) { K.forEach(function (v) { if (v === "VRES" && c.dem !== "RUPT") return;
     var e = s.escala_media[v];
     L.push([s.pid, c.id, c.dem, c.pos, v, c.vetores[v], DEM[c.dem] === v ? 1 : 0].concat(SOCIO.map(function (x) { return (s.socio || {})[x[0]] || ""; }), [e == null ? "" : e.toFixed(3)])); }); }); });
   var csvL = L.map(csvLine).join("\n");
+  var O = [["pid", "cena", "exigencia", "posicao", "opcao", "ordem_na_tela", "nivel"].concat(K.map(function (v) { return "peso_" + v; }), SOCIO.map(function (s) { return s[0]; }))];
+  A.forEach(function (s) { s.cenas.forEach(function (c) { var def = CENAS.filter(function (x) { return x.id === c.id; })[0]; if (!def) return;
+    def.o.forEach(function (op, k) { O.push([s.pid, c.id, c.dem, c.pos, k + 1, (c.ordem_opcoes || []).indexOf(k) + 1, c.aloc[k]].concat(K.map(function (v) { return op[1][v] || 0; }), SOCIO.map(function (x) { return (s.socio || {})[x[0]] || ""; }))); }); }); });
+  var csvO = O.map(csvLine).join("\n");
 
   function tab(M, cap) {
     return '<div class="tablebox"><table><thead><tr><th>' + cap + '</th>' + K.map(function (v) { return '<th class="n">' + v + '</th>'; }).join("") + '</tr></thead><tbody>' +
@@ -96,14 +100,14 @@ function render(all) {
     '<div class="row"><span class="note">Análises usam a primeira sessão de cada pessoa.</span><button class="btn ghost" id="rf">Atualizar</button></div></section>' +
     '<section class="card"><h2>Perfil médio da amostra</h2><div class="bars">' + K.map(function (v) {
       var p = n ? mean(A.map(function (s) { return s.perfil.prop[v]; })) : 0;
-      return '<div class="bar"><div class="lab"><span>' + V[v].nome + '</span><b style="color:' + V[v].cor + '">' + Math.round(p * 100) + '% · ' + f2(mean(vin(v))) + ' fichas/cena</b></div><div class="track"><div class="fill" style="width:' + Math.round(p * 100) + '%;background:' + V[v].cor + '"></div></div></div>'; }).join("") + '</div>' +
-    '<p class="note">Fichas aplicadas por cena: ' + f2(mean(A.map(function (s) { return s.perfil.aplicadas_media; }))) + ' de 10. VRES conta só nas ' + N_RUPT + ' cenas com ruptura.</p></section>' +
+      return '<div class="bar"><div class="lab"><span>' + V[v].nome + '</span><b style="color:' + V[v].cor + '">' + Math.round(p * 100) + '% · ' + f2(mean(vin(v))) + ' pontos/cena</b></div><div class="track"><div class="fill" style="width:' + Math.round(p * 100) + '%;background:' + V[v].cor + '"></div></div></div>'; }).join("") + '</div>' +
+    '<p class="note">Pontos usados por cena: ' + f2(mean(A.map(function (s) { return s.perfil.aplicadas_media; }))) + ' de ' + ORCAMENTO + '. VRES conta só nas ' + N_RUPT + ' cenas com ruptura.</p></section>' +
     '<section class="card"><h2>Consistência</h2><div class="tablebox"><table><thead><tr><th>Vetor</th><th class="n">α vinhetas</th><th class="n">α escala</th></tr></thead><tbody>' +
     K.map(function (v) { return '<tr><td>' + chip(v) + '</td><td class="n ' + cls(alfaVin[v], .6) + '">' + f2(alfaVin[v]) + '</td><td class="n ' + cls(alfaEsc[v], .6) + '">' + f2(alfaEsc[v]) + '</td></tr>'; }).join("") +
     '</tbody></table></div><p class="note">O alfa das vinhetas trata cada cena como um item e mede se quem aciona um vetor numa situação tende a acioná-lo nas outras. Referência usual de 0,60 a 0,70 para escalas curtas.</p></section>' +
     '<section class="card"><h2>Correspondência com a exigência da cena</h2><div class="tablebox"><table><thead><tr><th>Vetor</th><th class="n">Diferença média</th><th class="n">Pessoas com efeito positivo</th></tr></thead><tbody>' +
     K4.map(function (v) { return '<tr><td>' + chip(v) + '</td><td class="n ' + cls(corrM[v], .3) + '">' + f2(corrM[v]) + '</td><td class="n">' + corrPos[v] + ' de ' + n + '</td></tr>'; }).join("") +
-    '</tbody></table></div><p class="note">Fichas no vetor quando a cena o exige, menos fichas quando não exige. Positivo indica que as pessoas deslocam o acionamento conforme o cenário. O teste formal é o modelo multinível sobre o CSV longo: fichas ~ exigido × vetor + socioeconômicos + (1 | pid).</p></section>' +
+    '</tbody></table></div><p class="note">Pontos no vetor quando a cena o exige, menos pontos quando não exige. Positivo indica que as pessoas deslocam o acionamento conforme o cenário. O teste formal é o modelo multinível sobre o CSV longo: pontos ~ exigido × vetor + socioeconômicos + (1 | pid).</p></section>' +
     '<section class="card"><h2>Matriz multitraço-multimétodo</h2>' + tab(mtmm, "Vinheta × escala") +
     '<p class="note">A diagonal em negrito é a validade convergente e deve superar os valores fora dela na mesma linha e coluna.</p>' +
     '<h3>Correlação entre vetores nas vinhetas</h3>' + tab(rvv, "Vinheta × vinheta") +
@@ -111,9 +115,12 @@ function render(all) {
     '<section class="card"><h2>Exportar</h2><p class="hint">Formato largo, uma linha por sessão:</p><textarea id="csvw" readonly>' + esc(csvW) + '</textarea>' +
     '<div class="row"><span class="note">' + sess.length + ' linhas</span><button class="btn" id="cw">Copiar CSV largo</button></div>' +
     '<p class="hint">Formato longo, pessoa × cena × vetor, para R ou Stata:</p><textarea id="csvl" readonly>' + esc(csvL) + '</textarea>' +
-    '<div class="row"><span class="note">' + (L.length - 1) + ' linhas</span><button class="btn" id="cl">Copiar CSV longo</button></div></section>';
+    '<div class="row"><span class="note">' + (L.length - 1) + ' linhas</span><button class="btn" id="cl">Copiar CSV longo</button></div>' +
+    '<p class="hint">Uma linha por ação (nível 0 a 3), para logit ordenado multinível:</p><textarea id="csvo" readonly>' + esc(csvO) + '</textarea>' +
+    '<div class="row"><span class="note">' + (O.length - 1) + ' linhas</span><button class="btn" id="co">Copiar CSV por ação</button></div></section>';
   $("#cw").onclick = function () { copyText($("#csvw"), $("#cw")); };
   $("#cl").onclick = function () { copyText($("#csvl"), $("#cl")); };
+  $("#co").onclick = function () { copyText($("#csvo"), $("#co")); };
   $("#rf").onclick = function () { var k = ""; try { k = sessionStorage.getItem("mvnes_key") || ""; } catch (e) {} carregar(k); };
 }
 
